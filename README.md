@@ -1,9 +1,9 @@
 # idb — IDA Pro Buddy
 
-A windbg-flavored CLI for interacting with IDA that is optimized for agentic harnesses. Every command opens an official [IDA Nexus](https://pypi.org/project/ida-nexus/) `DatabaseHandle`, performs one operation, and releases it. Registered GUI databases are preferred; Nexus starts a managed idalib worker when an explicit `--idb` target needs one. Output remains compact to minimize token use.
+A windbg-flavored CLI for interacting with IDA that is optimized for agentic harnesses. Every command opens an [IDA Nexus](https://pypi.org/project/ida-nexus/) `DatabaseHandle`, performs one operation, and releases it. Registered GUI databases are preferred; Nexus starts a managed headless worker when an explicit `--idb` target needs one. Output remains compact to minimize token use.
 
 ```
-idb open foo.exe          # attach GUI or managed idalib, print a triage summary
+idb open foo.exe          # attach GUI or managed worker, print a triage summary
 idb u sub_401000          # disassemble a function (windbg alias for `disas`)
 idb dec sub_401000        # decompile (Hex-Rays)
 idb db 0x401000 -n 64     # hexdump 64 bytes
@@ -16,18 +16,16 @@ idb dt GUID                # inspect a type
 
 ## Install
 
-This port requires IDA 9.4+, IDA Nexus, and its optional GUI plugin. Nexus owns idalib activation and database lifecycle.
+This port requires IDA 9.4+ and IDA Nexus 0.14.1+. Nexus owns IDA discovery and database lifecycle. Install them in the same environment so the managed Nexus worker is available.
 
 ```powershell
 # Installs ida-nexus from PyPI with ida-buddy:
 uv sync
 uv run idb doctor
 
-# Install the GUI plugin so already-open IDA databases are registered:
+# Install the plugin so already-open IDA databases are registered:
 hcli plugin install ida-nexus
 ```
-
-For a packaged install, install `ida-nexus>=0.11.0` and `ida-buddy` in the same environment so the managed Nexus worker is available.
 
 ## Commands
 
@@ -35,7 +33,7 @@ Aliases in parens. `[mut]` mutates the database (creates an undo point).
 
 | Command | Meaning |
 |---|---|
-| `open [--fresh] <path>` | attach to a registered GUI, or spawn managed idalib, then print summary |
+| `open [--fresh] <path>` | attach to a registered GUI, or spawn a managed worker, then print summary |
 | `sessions` | list registered Nexus databases |
 | `close [record-id] [--all] [--no-save]` | shut down a managed worker; `--no-save` discards unsaved changes |
 | `save` / `doctor` | persist the selected database / diagnose setup |
@@ -77,7 +75,7 @@ Aliases in parens. `[mut]` mutates the database (creates an undo point).
 There is no idb daemon or retained cross-process CLI session. Each invocation
 uses one `DatabaseHandle` and closes it before exiting.
 
-With exactly one registered GUI/idalib database, commands select it
+With exactly one registered database, commands select it
 automatically. Otherwise target a live record from `idb sessions` with `-s`, or
 pass a stable executable/IDB path with `--idb`:
 
@@ -88,7 +86,7 @@ idb --idb C:\bins\foo.exe dec main
 idb --idb C:\bins\foo.exe save
 ```
 
-`--idb` can start a managed idalib worker on demand. After the command releases
+`--idb` can start a managed worker on demand. After the command releases
 its handle the worker lingers for up to an hour, so undo history survives
 between invocations (`idb undo` reverts a bad mutation); it saves and closes
 when the linger expires. GUI databases are never closed by the CLI.

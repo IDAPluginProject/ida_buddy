@@ -2,7 +2,7 @@
 
 The CLI's Nexus request adds its installed package directory to the remote
 interpreter's ``sys.path`` and invokes these functions in the registered GUI or
-idalib instance. Envelopes returned from here are bytes-encoded for Nexus's JSON
+headless worker. Envelopes returned from here are bytes-encoded for Nexus's JSON
 wire; the CLI decodes them in ``nexus.envelope_from_execution``.
 """
 

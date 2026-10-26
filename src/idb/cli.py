@@ -191,9 +191,9 @@ def _add_flags(sp, name):
                          if name in _TOTAL_CMDS else argparse.SUPPRESS)
 
 _ROOT_DESCRIPTION = (
-    "IDA Pro Buddy - drive a registered IDA GUI or managed idalib session from the shell. "
+    "IDA Pro Buddy - drive a registered IDA GUI or managed headless worker from the shell. "
     "Each call opens an official Nexus DatabaseHandle, performs one operation, and releases "
-    "it. Use --idb <path> to spawn/target idalib explicitly; when exactly one registered "
+    "it. Use --idb <path> to spawn/target a worker explicitly; when exactly one registered "
     "database is live it is selected automatically. "
     "WinDbg-style aliases "
     "(u, dec, db/dw/dd/dq, da/du, x, ln, dt, s) are recommended."
@@ -238,7 +238,7 @@ def build_parser():
         _add_flags(sp, name)
         return sp
 
-    sp = cmd("open", help="attach to a registered GUI or managed idalib database",
+    sp = cmd("open", help="attach to a registered GUI or managed worker database",
              ex=(r"open C:\bins\foo.exe", "open foo.exe --fresh"))
     sp.add_argument("target")
     sp.add_argument("--fresh", action="store_true",
@@ -246,7 +246,7 @@ def build_parser():
 
     cmd("sessions", help="list registered Nexus databases", ex=("sessions",))
     cmd("save", help="persist the .i64 now", ex=("save --idb foo.exe",))
-    sp = cmd("close", help="shut down a managed idalib worker (GUI databases close in IDA)",
+    sp = cmd("close", help="shut down a managed worker (GUI databases close in IDA)",
              ex=("close", "close --no-save", "close --all"))
     sp.add_argument("session_pos", nargs="?", default=None, metavar="record-id",
                     help="record id (same as -s)")

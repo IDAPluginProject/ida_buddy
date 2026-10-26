@@ -1,25 +1,17 @@
 """Environment probe for the direct IDA Nexus CLI.
 
-Verifies what idb actually needs WITHOUT importing ida_* into the CLI process:
-spawning a managed worker requires the idapro package and an activated idalib
-(ida-config.json), so idapro is probed via a throwaway subprocess that really
-initializes the kernel and reports the version.
+Verifies what idb actually needs WITHOUT importing ida_* into the CLI process.
+IDA discovery and worker-backend selection are delegated to ida_nexus so doctor
+reports exactly what an `idb open` would do: with the ida-nexus plugin installed
+for IDA, new workers run in `idat`; otherwise (or with IDA_NEXUS_IDALIB_ONLY)
+they run idalib in this interpreter, which needs an activated idapro package —
+probed via a throwaway subprocess that really initializes the kernel.
 """
 
 import importlib
 import importlib.util
-import json
-import os
 import subprocess
 import sys
-from pathlib import Path
-
-
-def _ida_config_path():
-    if sys.platform == "win32":
-        base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
-        return Path(base) / "Hex-Rays" / "IDA Pro" / "ida-config.json"
-    return Path.home() / ".idapro" / "ida-config.json"
 
 
 def _find_spec(name):
@@ -61,16 +53,31 @@ def _check_idapro():
     return ("idapro", "OK", f"IDA library {res.stdout.strip()}")
 
 
-def _check_ida_config():
-    path = _ida_config_path()
-    if not path.exists():
-        return ("ida-config", "MISSING", f"{path} (run py-activate-idalib.py)")
+def _check_ida_install():
     try:
-        cfg = json.loads(path.read_text())
-        return ("ida-config", "OK",
-                cfg.get("Paths", {}).get("ida-install-dir", "(no install dir)"))
-    except (ValueError, OSError) as exc:
-        return ("ida-config", "ERROR", str(exc))
+        from ida_nexus.paths import find_ida_install_dir
+
+        root = find_ida_install_dir()
+    except Exception as exc:
+        return ("ida-install", "ERROR", str(exc))
+    if root is None:
+        return ("ida-install", "MISSING",
+                "set IDADIR or run py-activate-idalib.py (writes ida-config.json)")
+    if not root.is_dir():
+        return ("ida-install", "ERROR", f"{root} is not a directory")
+    return ("ida-install", "OK", str(root))
+
+
+def _worker_backend():
+    """Return ``(row, backend)``; backend is None when no worker can start."""
+    try:
+        from ida_nexus._launch import select_backend
+
+        backend, executable = select_backend(gui=False)
+    except Exception as exc:
+        return ("worker", "ERROR", str(exc)), None
+    detail = executable if executable else "idalib in this interpreter"
+    return ("worker", "OK", f"{backend}: {detail}"), backend
 
 
 def _check_nexus_registry():
@@ -91,12 +98,16 @@ def _check_nexus_registry():
 
 def run():
     """Return ``(rows, ok)`` where rows are ``(check, status, detail)``."""
+    worker_row, backend = _worker_backend()
     rows = [
         _check_python(),
         _check_module("ida_nexus"),
-        _check_idapro(),
-        _check_ida_config(),
-        _check_nexus_registry(),
+        _check_ida_install(),
+        worker_row,
     ]
+    # idapro is only loaded by idalib workers; idat workers use IDA's Python.
+    if backend == "idalib":
+        rows.append(_check_idapro())
+    rows.append(_check_nexus_registry())
     ok = all(status not in {"MISSING", "ERROR"} for _, status, _ in rows)
     return rows, ok

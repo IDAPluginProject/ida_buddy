@@ -3,7 +3,7 @@
 Nexus executes Python in IDA's interpreter. Both ends run on the same host, so
 we publish this installation's package parent on the remote ``sys.path`` and
 call a small IDA-side entry point. This keeps the IDA plugin generic and lets
-GUI and managed idalib instances use exactly the same handler implementation.
+GUI and managed headless workers use exactly the same handler implementation.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ def _preamble(payload: dict[str, Any]) -> str:
         f"if getattr(_idb_pkg, '__version__', '?') != {__version__!r}:\n"
         "    raise RuntimeError(\n"
         "        'IDA holds stale idb modules (%s, CLI is %s); restart IDA or the '\n"
-        f"        'idalib worker to reload' % (getattr(_idb_pkg, '__version__', '?'), {__version__!r})\n"
+        f"        'worker to reload' % (getattr(_idb_pkg, '__version__', '?'), {__version__!r})\n"
         "    )\n"
         f"_idb_request = json.loads(base64.b64decode({encoded!r}).decode('utf-8'))\n"
     )
